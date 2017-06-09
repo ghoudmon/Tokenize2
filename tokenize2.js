@@ -354,7 +354,7 @@
         $('<li class="token" role="option" aria-checked="true" aria-selected="false" tabindex="-1"/>')
             .attr('data-value', value)
             .append('<span>' + text + '</span>')
-            .prepend($('<a class="dismiss tooltips" role="button" data-container="body" tabindex="0"/>').attr('title', title).html('&#215;').on('mousedown touchstart', {}, $.proxy(function(e){
+            .prepend($('<a class="dismiss tooltips" role="button" data-container="body" tabindex="0"/>').attr('title', title).on('mousedown touchstart', {}, $.proxy(function(e){
                 e.preventDefault();
                 this.trigger('tokenize:tokens:remove', [value]);
             }, this)).on('keypress', {}, $.proxy(function (e) {
