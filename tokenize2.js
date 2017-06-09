@@ -58,13 +58,13 @@
      */
     var KEYS = {
         BACKSPACE: 8,
-        TAB: 9,
         ENTER: 13,
         ESCAPE: 27,
         ARROW_UP: 38,
         ARROW_DOWN: 40,
         CTRL: 17,
-        MAJ: 16
+        MAJ: 16,
+        SPACE: 32
     };
 
     Tokenize2.VERSION = '1.0';
@@ -84,7 +84,9 @@
         placeholder: false,
         sortable: false,
         zIndexMargin: 500,
-        tabIndex: 0
+        tabIndex: 0,
+        ariaSearchLabel: 'Search input',
+        removeButtonTitle: 'Remove {0}'
     };
 
     /**
@@ -140,7 +142,7 @@
 
         this.dropdown = undefined;
         this.searchContainer = $('<li class="token-search" />');
-        this.input = $('<input autocomplete="off" />')
+        this.input = $('<input autocomplete="off" type="text" aria-autocomplete="list" />')
             .on('keydown', {}, $.proxy(function(e){ this.trigger('tokenize:keydown', [e]) }, this))
             .on('keypress', {}, $.proxy(function(e){ this.trigger('tokenize:keypress', [e]) }, this))
             .on('keyup', {}, $.proxy(function(e){ this.trigger('tokenize:keyup', [e]) }, this))
@@ -156,11 +158,17 @@
                     }, this), 10);
                 }
             }, this));
-
-        this.tokensContainer = $('<ul class="tokens-container form-control" />')
+        if (this.options.ariaSearchLabel) {
+          this.input.attr('aria-label', this.options.ariaSearchLabel);
+        }
+        this.input.attr('tabindex', this.options.tabIndex);
+        this.tokensContainer = $('<ul class="tokens-container form-control" tabindex="0" role="combobox" aria-expanded="true" />')
             .addClass(this.element.attr('data-class'))
-            .attr('tabindex', this.options.tabIndex)
-            .append(this.searchContainer.append(this.input));
+            .append(this.searchContainer.append(this.input))
+            .on('mousedown touchstart', {}, $.proxy(function (e) {
+              e.preventDefault();
+              this.input.focus();
+            }, this));
 
         if(this.options.placeholder !== false){
             this.placeholder = $('<li class="placeholder" />').html(this.options.placeholder);
@@ -222,6 +230,12 @@
             .on('tokenize:keydown tokenize:keyup tokenize:loaded', $.proxy(function(){
                 this.scaleInput();
             }, this));
+
+        // manage label for if exists
+        this.input.attr('id', this.id + '_tokenizeInput').attr('aria-owns', this.id + '_tokenizeDropdown');
+        if (this.element.attr('id')) {
+          $('label[for="' + this.element.attr('id') + '"]').attr('for', this.id + '_tokenizeInput');
+        }
 
         this.trigger('tokenize:remap');
         this.trigger('tokenize:tokens:reorder');
@@ -309,13 +323,18 @@
             this.trigger('tokenize:tokens:error:notokensAllowCustom');
             return this;
         }
-
-        $('<li class="token" />')
+        var title = this.options.removeButtonTitle ?  this.options.removeButtonTitle.replace('{0}', text) : '', me = this;
+        $('<li class="token" role="option" aria-checked="true" aria-selected="false" tabindex="-1"/>')
             .attr('data-value', value)
             .append('<span>' + text + '</span>')
-            .prepend($('<a class="dismiss" />').on('mousedown touchstart', {}, $.proxy(function(e){
+            .prepend($('<a class="dismiss tooltips" role="button" data-container="body" tabindex="0"/>').attr('title', title).html('&#215;').on('mousedown touchstart', {}, $.proxy(function(e){
                 e.preventDefault();
                 this.trigger('tokenize:tokens:remove', [value]);
+            }, this)).on('keypress', {}, $.proxy(function (e) {
+                if (e.keyCode === KEYS.ENTER || e.keyCode === KEYS.SPACE) {
+                  e.preventDefault();
+                  this.trigger('tokenize:tokens:remove', [value]);
+                }
             }, this)))
             .insertBefore(this.searchContainer);
 
@@ -340,7 +359,9 @@
         } else {
             $item.removeAttr('selected').prop('selected', false);
         }
-
+        if ($.fn.tooltip) {
+          $('li.token[data-value="' + v + '"] a.dismiss', this.tokensContainer).tooltip('destroy');
+        }
         $('li.token[data-value="' + v + '"]', this.tokensContainer).remove();
 
         this.trigger('tokenize:tokens:reorder');
@@ -470,7 +491,6 @@
 
         if(e.type === 'keyup'){
             switch(e.keyCode){
-                case KEYS.TAB:
                 case KEYS.ENTER:
                 case KEYS.ESCAPE:
                 case KEYS.ARROW_UP:
@@ -648,7 +668,7 @@
 
         if(!this.isDropdownOpen()){
             $('.tokenize-dropdown').remove();
-            this.dropdown = $('<div class="tokenize-dropdown dropdown"><ul class="dropdown-menu" /></div>').attr('data-related', this.id);
+            this.dropdown = $('<div class="tokenize-dropdown dropdown"><ul class="dropdown-menu" tabindex="-1" role="listbox" aria-expanded="true" /></div>').attr('data-related', this.id).attr('id', this.input.attr('aria-owns') || '');
             $('body').append(this.dropdown);
             this.dropdown.show();
             this.dropdown.css('z-index', this.calculatezindex() + this.options.zIndexMargin);
@@ -731,7 +751,7 @@
             }, this));
 
             if($('li.active', this.dropdown).length < 1){
-                $('li:first', this.dropdown).addClass('active');
+                $('li:first', this.dropdown).addClass('active').attr('aria-selected', true);
             }
 
             if($('li.dropdown-item', this.dropdown).length < 1){
@@ -765,20 +785,20 @@
         if($('li.active', this.dropdown).length > 0){
             if(!$('li.active', this.dropdown).is('li:' + (d > 0 ? 'last-child'  : 'first-child'))){
                 var $active = $('li.active', this.dropdown);
-                $active.removeClass('active');
+                $active.removeClass('active').attr('aria-selected', false);
                 if(d > 0){
-                    $active.next().addClass('active');
+                    $active.next().addClass('active').attr('aria-selected', true);
                 } else {
-                    $active.prev().addClass('active');
+                    $active.prev().addClass('active').attr('aria-selected', true);
                 }
             } else {
-                $('li.active', this.dropdown).removeClass('active');
-                $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active');
+                $('li.active', this.dropdown).removeClass('active').attr('aria-selected', false);
+                $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active').attr('aria-selected', true);
             }
         } else {
-            $('li:first', this.dropdown).addClass('active');
+            $('li:first', this.dropdown).addClass('active').attr('aria-selected', true);
         }
-
+        this.input.attr('aria-activedescendant', $('li.active', this.dropdown).attr('id'));
     };
 
     /**
@@ -789,7 +809,7 @@
     Tokenize2.prototype.dropdownAddItem = function(item){
 
         if(this.isDropdownOpen()){
-            var $li = $('<li class="dropdown-item" />').html(this.dropdownItemFormat(item))
+            var $li = $('<li class="dropdown-item" role="listitem" aria-checked="false" aria-selected="false" tabindex="-1" />').html(this.dropdownItemFormat(item))
                 .on('mouseover', $.proxy(function(e){
                     e.preventDefault();
                     e.target = this.fixTarget(e.target);
@@ -803,6 +823,7 @@
                     this.trigger('tokenize:tokens:add', [$(e.target).attr('data-value'), $(e.target).attr('data-text'), true]);
                 }, this));
             if($('li.token[data-value="' + $li.find('a').attr('data-value') + '"]', this.tokensContainer).length < 1){
+                $li.attr('aria-label', $li.find('a').attr('data-text')).attr('id', this.id + '_tokenizeDropdownItem_' + this.dropdown.find('.dropdown-menu li').length);
                 this.dropdown.find('.dropdown-menu').append($li);
                 this.trigger('tokenize:dropdown:itemAdded', [item]);
             }
