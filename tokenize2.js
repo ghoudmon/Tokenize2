@@ -611,7 +611,7 @@
             .not(':selected, :disabled')
             .each(function(){
                 if($regexp.test($this.transliteration($(this).html()))){
-                    $items.push({ value: $(this).attr('value'), text: $(this).html() });
+                    $items.push({ value: $(this).attr('value'), text: $(this).html(), group: $(this).parent('optgroup').attr('label') });
                 }
             });
 
@@ -731,7 +731,7 @@
             }, this));
 
             if($('li.active', this.dropdown).length < 1){
-                $('li:first', this.dropdown).addClass('active');
+                $('li.dropdown-item', this.dropdown).first().addClass('active');
             }
 
             if($('li.dropdown-item', this.dropdown).length < 1){
@@ -762,21 +762,19 @@
      */
     Tokenize2.prototype.dropdownSelectionMove = function(d){
 
+        var $lis = $('li.dropdown-item', this.dropdown);
         if($('li.active', this.dropdown).length > 0){
-            if(!$('li.active', this.dropdown).is('li:' + (d > 0 ? 'last-child'  : 'first-child'))){
+            if(!$('li.active', this.dropdown).is(d > 0 ? $lis.last()  : $lis.first())){
                 var $active = $('li.active', this.dropdown);
                 $active.removeClass('active');
-                if(d > 0){
-                    $active.next().addClass('active');
-                } else {
-                    $active.prev().addClass('active');
-                }
+                $lis.eq($lis.index($active) + (d > 0 ? 1 : -1)).addClass('active');
             } else {
                 $('li.active', this.dropdown).removeClass('active');
-                $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active');
+                $active = d > 0 ? $lis.first() : $lis.last();
+                $active.addClass('active');
             }
         } else {
-            $('li:first', this.dropdown).addClass('active');
+            $lis.first().addClass('active');
         }
 
     };
@@ -803,6 +801,13 @@
                     this.trigger('tokenize:tokens:add', [$(e.target).attr('data-value'), $(e.target).attr('data-text'), true]);
                 }, this));
             if($('li.token[data-value="' + $li.find('a').attr('data-value') + '"]', this.tokensContainer).length < 1){
+                // add group if specified
+                if (item.group) {
+                  var $group = this.dropdown.find('.dropdown-menu li[data-group="' + item.group + '"]');
+                  if ($group.length < 1) {
+                      $group = $('<li class="dropdown-item-group">').text(item.group).attr('data-group', item.group).appendTo(this.dropdown.find('.dropdown-menu'));
+                  }
+                }
                 this.dropdown.find('.dropdown-menu').append($li);
                 this.trigger('tokenize:dropdown:itemAdded', [item]);
             }

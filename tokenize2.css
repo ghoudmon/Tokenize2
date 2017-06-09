@@ -157,3 +157,11 @@
 .tokenize-dropdown > .dropdown-menu li:not(.active) a:focus {
     background-color: transparent;
 }
+
+.tokenize-dropdown > .dropdown-menu li.dropdown-item-group {
+    padding: 3px 10px;
+    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid rgba(0,0,0,.15);
+    font-weight: bold;
+    cursor: default;
+}
