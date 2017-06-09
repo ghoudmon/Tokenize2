@@ -849,17 +849,18 @@
             if(!$('li.active', this.dropdown).is(d > 0 ? $lis.last()  : $lis.first())){
                 var $active = $('li.active', this.dropdown);
                 $active.removeClass('active').attr('aria-selected', false);
+                var $previousTop = $active.position().top;
                 if(d > 0){
                     $active = $lis.eq($lis.index($active) + 1).addClass('active').attr('aria-selected', true);
                     // check scroll
                     if ($active.position().top > ($ul.height() - $active.height())) {
-                      $ul.scrollTop($ul.scrollTop() + $active.height());
+                      $ul.scrollTop($ul.scrollTop() + ($active.position().top - $previousTop));
                     }
                 } else {
                     $active = $lis.eq($lis.index($active) -1).addClass('active').attr('aria-selected', true);
                     // check scroll
                     if ($active.position().top < 0) {
-                      $ul.scrollTop(Math.min($ul.scrollTop() - $active.height(), 0));
+                      $ul.scrollTop(Math.max($ul.scrollTop() - ($previousTop - $active.position().top), 0));
                     }
                 }
             } else {
