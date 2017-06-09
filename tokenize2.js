@@ -799,22 +799,36 @@
      * @param {int} d
      */
     Tokenize2.prototype.dropdownSelectionMove = function(d){
-
+        if (!this.dropdown) {
+          // dropdown not shown
+          return;
+        }
+        var $ul = this.dropdown.children('ul').first();
         if($('li.active', this.dropdown).length > 0){
             if(!$('li.active', this.dropdown).is('li:' + (d > 0 ? 'last-child'  : 'first-child'))){
                 var $active = $('li.active', this.dropdown);
                 $active.removeClass('active').attr('aria-selected', false);
                 if(d > 0){
-                    $active.next().addClass('active').attr('aria-selected', true);
+                    $active = $active.next().addClass('active').attr('aria-selected', true);
+                    // check scroll
+                    if ($active.position().top > ($ul.height() - $active.height())) {
+                      $ul.scrollTop($ul.scrollTop() + $active.height());
+                    }
                 } else {
-                    $active.prev().addClass('active').attr('aria-selected', true);
+                    $active = $active.prev().addClass('active').attr('aria-selected', true);
+                    // check scroll
+                    if ($active.position().top < 0) {
+                      $ul.scrollTop(Math.min($ul.scrollTop() - $active.height(), 0));
+                    }
                 }
             } else {
                 $('li.active', this.dropdown).removeClass('active').attr('aria-selected', false);
-                $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active').attr('aria-selected', true);
+                $active = $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active').attr('aria-selected', true);
+                $ul.scrollTop($active.position().top);
             }
         } else {
             $('li:first', this.dropdown).addClass('active').attr('aria-selected', true);
+            $ul.scrollTop(0);
         }
         this.input.attr('aria-activedescendant', $('li.active', this.dropdown).attr('id'));
     };
