@@ -87,7 +87,13 @@
         zIndexMargin: 500,
         tabIndex: 0,
         ariaSearchLabel: 'Search input',
-        removeButtonTitle: 'Remove {0}'
+        removeButtonTitle: 'Remove {0}',
+        selectAll: false,
+        selectAllValue: '*',
+        selectAllLabel: 'Select All',
+        selectNone: false,
+        selectNoneValue: '-',
+        selectNoneLabel: 'Select None'
     };
 
     /**
@@ -295,6 +301,26 @@
         text = text || value;
         force = force || false;
         this.resetInput();
+
+        if (this.options.selectNone && value === this.options.selectNoneValue) {
+          // remove all tokens
+          this.trigger('tokenize:clear');
+          return this;
+        } else if (this.options.selectAll && value === this.options.selectAllValue) {
+          // get all known tokens
+          var values = [], me = this;
+          $('li a', this.dropdwon).each($.proxy(function (index, element) {
+            var value = $(element).attr('data-value');
+            if (value !== this.options.selectNoneValue && value !== this.options.selectAllValue) {
+              values.push([value, $(element).attr('data-text'), true]);
+            }
+          }, this));
+          // add tokens
+          $.each(values, $.proxy(function (index, itemValue) {
+            this.tokenAdd.apply(this, itemValue);
+          }, this));
+          return this;
+        }
 
         // Check if token is empty
         if(value === undefined || value === ''){
@@ -762,6 +788,13 @@
             this.trigger('tokenize:dropdown:show');
             this.trigger('tokenize:dropdown:clear');
 
+            if (this.options.selectAll) {
+              this.trigger('tokenize:dropdown:itemAdd', [{value: this.options.selectAllValue, text: this.options.selectAllLabel}]);
+            }
+            if (this.options.selectNone) {
+              this.trigger('tokenize:dropdown:itemAdd', [{value: this.options.selectNoneValue, text: this.options.selectNoneLabel}]);
+            }
+
             $.each(items, $.proxy(function(k, v) {
                 if($('li.dropdown-item', this.dropdown).length <= this.options.dropdownMaxItems){
                     this.trigger('tokenize:dropdown:itemAdd', [v]);
@@ -854,9 +887,22 @@
                     e.target = this.fixTarget(e.target);
                     this.trigger('tokenize:tokens:add', [$(e.target).attr('data-value'), $(e.target).attr('data-text'), true]);
                 }, this));
-            if($('li.token[data-value="' + $li.find('a').attr('data-value') + '"]', this.tokensContainer).length < 1){
-                $li.attr('aria-label', $li.find('a').attr('data-text')).attr('id', this.id + '_tokenizeDropdownItem_' + this.dropdown.find('.dropdown-menu li').length);
+            var $value = $li.find('a').attr('data-value');
+            if($('li.token[data-value="' + $value + '"]', this.tokensContainer).length < 1){
+                $li.attr('id', this.id + '_tokenizeDropdownItem_' + this.dropdown.find('.dropdown-menu li').length);
                 this.dropdown.find('.dropdown-menu').append($li);
+                // add special styles
+                if (this.options.selectAll && $value === this.options.selectAllValue) {
+                  $li.addClass('tokenize-dropdown-item-select-all');
+                  if (this.options.selectNone) {
+                    $li.addClass('tokenize-dropdown-item-select-both');
+                  }
+                } else if (this.options.selectNone && $value === this.options.selectNoneValue) {
+                  $li.addClass('tokenize-dropdown-item-select-none');
+                  if (this.options.selectAll) {
+                    $li.addClass('tokenize-dropdown-item-select-both');
+                  }
+                }
                 this.trigger('tokenize:dropdown:itemAdded', [item]);
             }
         }
