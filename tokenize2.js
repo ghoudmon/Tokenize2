@@ -676,7 +676,7 @@
             .not(':selected, :disabled')
             .each(function(){
                 if($regexp.test($this.transliteration($(this).html()))){
-                    $item = { value: $(this).attr('value'), text: $(this).html() };
+                    $item = { value: $(this).attr('value'), text: $(this).html(), group: $(this).parent('optgroup').attr('label') };
                     if ($this.options.styleDropdownItem) {
                         // get style options
                         $item.color = $(this).css('color');
@@ -809,7 +809,7 @@
             }, this));
 
             if($('li.active', this.dropdown).length < 1){
-                $('li:first', this.dropdown).addClass('active').attr('aria-selected', true);
+                $('li.dropdown-item', this.dropdown).first().addClass('active').attr('aria-selected', true);
             }
 
             if($('li.dropdown-item', this.dropdown).length < 1){
@@ -844,18 +844,19 @@
           return;
         }
         var $ul = this.dropdown.children('ul').first();
+        var $lis = $('li.dropdown-item', $ul);
         if($('li.active', this.dropdown).length > 0){
-            if(!$('li.active', this.dropdown).is('li:' + (d > 0 ? 'last-child'  : 'first-child'))){
+            if(!$('li.active', this.dropdown).is(d > 0 ? $lis.last()  : $lis.first())){
                 var $active = $('li.active', this.dropdown);
                 $active.removeClass('active').attr('aria-selected', false);
                 if(d > 0){
-                    $active = $active.next().addClass('active').attr('aria-selected', true);
+                    $active = $lis.eq($lis.index($active) + 1).addClass('active').attr('aria-selected', true);
                     // check scroll
                     if ($active.position().top > ($ul.height() - $active.height())) {
                       $ul.scrollTop($ul.scrollTop() + $active.height());
                     }
                 } else {
-                    $active = $active.prev().addClass('active').attr('aria-selected', true);
+                    $active = $lis.eq($lis.index($active) -1).addClass('active').attr('aria-selected', true);
                     // check scroll
                     if ($active.position().top < 0) {
                       $ul.scrollTop(Math.min($ul.scrollTop() - $active.height(), 0));
@@ -863,11 +864,11 @@
                 }
             } else {
                 $('li.active', this.dropdown).removeClass('active').attr('aria-selected', false);
-                $active = $('li:' + (d > 0 ? 'first-child' : 'last-child'), this.dropdown).addClass('active').attr('aria-selected', true);
+                $active = (d > 0 ? $lis.first() : $lis.last()).addClass('active').attr('aria-selected', true);
                 $ul.scrollTop($active.position().top);
             }
         } else {
-            $('li:first', this.dropdown).addClass('active').attr('aria-selected', true);
+            $lis.first().addClass('active').attr('aria-selected', true);
             $ul.scrollTop(0);
         }
         this.input.attr('aria-activedescendant', $('li.active', this.dropdown).attr('id'));
@@ -897,6 +898,13 @@
             var $value = $li.find('a').attr('data-value');
             if($('li.token[data-value="' + $value + '"]', this.tokensContainer).length < 1){
                 $li.attr('id', this.id + '_tokenizeDropdownItem_' + this.dropdown.find('.dropdown-menu li').length);
+                // add group if specified
+                if (item.group) {
+                  var $group = this.dropdown.find('.dropdown-menu li[data-group="' + item.group + '"]');
+                  if ($group.length < 1) {
+                      $group = $('<li class="dropdown-item-group">').text(item.group).attr('data-group', item.group).appendTo(this.dropdown.find('.dropdown-menu'));
+                  }
+                }
                 this.dropdown.find('.dropdown-menu').append($li);
                 // add special styles
                 if (this.options.selectAll && $value === this.options.selectAllValue) {
