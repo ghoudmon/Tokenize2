@@ -150,7 +150,7 @@
 
         this.dropdown = undefined;
         this.searchContainer = $('<li class="token-search" />');
-        this.input = $('<input autocomplete="off" type="text" aria-autocomplete="list" />')
+        this.input = $('<input autocomplete="off" type="text" aria-autocomplete="list" role="combobox"/>')
             .on('keydown', {}, $.proxy(function(e){ this.trigger('tokenize:keydown', [e]) }, this))
             .on('keypress', {}, $.proxy(function(e){ this.trigger('tokenize:keypress', [e]) }, this))
             .on('keyup', {}, $.proxy(function(e){ this.trigger('tokenize:keyup', [e]) }, this))
@@ -195,7 +195,10 @@
         this.container.focusin($.proxy(function(e){
             this.trigger('tokenize:select', [($(e.target)[0] === this.tokensContainer[0])]);
         }, this))
-        .focusout($.proxy(function(){
+        .focusout($.proxy(function(e){
+            if (this.dropdown !== undefined && e.relatedTarget && this.dropdown.find(e.relatedTarget).length > 0) {
+              return;
+            }
             this.trigger('tokenize:deselect');
         }, this));
 
@@ -242,7 +245,15 @@
         // manage label for if exists
         this.input.attr('id', this.id + '_tokenizeInput').attr('aria-owns', this.id + '_tokenizeDropdown');
         if (this.element.attr('id')) {
-          $('label[for="' + this.element.attr('id') + '"]').attr('for', this.id + '_tokenizeInput');
+          var $label = $('label[for="' + this.element.attr('id') + '"]'), $parent = $(document);
+          if (this.element.closest('html').length < 1) {
+            // not yet attached to DOM, find the top parent
+            var $parent = this.element.parent();
+            while ($parent.parent().length > 0) {
+              $parent = $parent.parent();
+            }
+          }
+          $('label[for="' + this.element.attr('id') + '"]', $parent).attr('for', this.id + '_tokenizeInput');
         }
 
         this.trigger('tokenize:remap');
@@ -354,8 +365,9 @@
         var title = this.options.removeButtonTitle ?  this.options.removeButtonTitle.replace('{0}', text) : '', me = this;
         $('<li class="token" role="option" aria-checked="true" aria-selected="false" tabindex="-1"/>')
             .attr('data-value', value)
-            .append('<span>' + text + '</span>')
-            .prepend($('<a class="dismiss tooltips" role="button" data-container="body" tabindex="0"/>').attr('title', title).on('mousedown touchstart', {}, $.proxy(function(e){
+            .append('<span class="aria-hidden">' + text + '</span>')
+            .prepend($('<a class="dismiss tooltips" role="button" data-container="body" tabindex="0"/>')
+                .attr('title', title).attr('aria-label', title).on('mousedown touchstart', {}, $.proxy(function(e){
                 e.preventDefault();
                 this.trigger('tokenize:tokens:remove', [value]);
             }, this)).on('keypress', {}, $.proxy(function (e) {
@@ -721,9 +733,14 @@
             $('.tokenize-dropdown').remove();
             this.dropdown = $('<div class="tokenize-dropdown dropdown"><ul class="dropdown-menu" tabindex="-1" role="listbox" aria-expanded="true" /></div>').attr('data-related', this.id).attr('id', this.input.attr('aria-owns') || '');
             $('body').append(this.dropdown);
-            this.dropdown.show();
+            this.dropdown.show().focusout($.proxy(function () {
+              this.trigger('tokenize:dropdown:hide');
+            }, this));
             this.dropdown.css('z-index', this.calculatezindex() + this.options.zIndexMargin);
-            $(window).on('resize scroll', {}, $.proxy(function(){ this.dropdownMove() }, this)).trigger('resize');
+            if (!this.proxyfiedDropdownMove) {
+              this.proxyfiedDropdownMove = $.proxy(function(){ this.dropdownMove() }, this);
+            }
+            $(window).on('resize scroll', {}, this.proxyfiedDropdownMove).trigger('resize');
             this.trigger('tokenize:dropdown:shown');
         }
 
@@ -767,7 +784,7 @@
     Tokenize2.prototype.dropdownHide = function(){
 
         if(this.isDropdownOpen()){
-            $(window).off('resize scroll');
+            $(window).off('resize scroll', {}, this.proxyfiedDropdownMove);
             this.dropdown.remove();
             this.dropdown = undefined;
             this.trigger('tokenize:dropdown:hidden');
@@ -811,6 +828,10 @@
             if($('li.active', this.dropdown).length < 1){
                 $('li.dropdown-item', this.dropdown).first().addClass('active').attr('aria-selected', true);
             }
+            var $lis = $('li.dropdown-item:visible', this.dropdown);
+            $lis.each(function (pos) {
+              $(this).attr('aria-posinset', pos + 1).attr('aria-setsize', $lis.length);
+            });
 
             if($('li.dropdown-item', this.dropdown).length < 1){
                 this.trigger('tokenize:dropdown:hide');
@@ -821,6 +842,12 @@
             if(this.options.displayNoResultsMessage){
                 this.trigger('tokenize:dropdown:show');
                 this.trigger('tokenize:dropdown:clear');
+                if (this.options.selectAll) {
+                  this.trigger('tokenize:dropdown:itemAdd', [{value: this.options.selectAllValue, text: this.options.selectAllLabel}]);
+                }
+                if (this.options.selectNone) {
+                  this.trigger('tokenize:dropdown:itemAdd', [{value: this.options.selectNoneValue, text: this.options.selectNoneLabel}]);
+                }                
                 this.dropdown.find('.dropdown-menu').append(
                     $('<li class="dropdown-item locked" />').html(this.options.noResultsMessageText.replace('%s', this.input.val()))
                 );
@@ -883,7 +910,7 @@
     Tokenize2.prototype.dropdownAddItem = function(item){
 
         if(this.isDropdownOpen()){
-            var $li = $('<li class="dropdown-item" role="listitem" aria-checked="false" aria-selected="false" tabindex="-1" />').html(this.dropdownItemFormat(item))
+            var $li = $('<li class="dropdown-item" role="option" aria-checked="false" aria-selected="false" tabindex="-1" />').html(this.dropdownItemFormat(item))
                 .on('mouseover', $.proxy(function(e){
                     e.preventDefault();
                     e.target = this.fixTarget(e.target);
